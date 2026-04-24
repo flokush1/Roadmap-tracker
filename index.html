@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>FY 2026-27 Roadmap Tracker</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Roadmap navigation">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true">RT</span>
+          <div>
+            <h1>Roadmap Tracker</h1>
+            <p>FY 2026-27</p>
+          </div>
+        </div>
+
+        <div class="owner-block">
+          <span>Kush Prakhar</span>
+          <strong>Data Scientist</strong>
+        </div>
+
+        <nav class="quarter-nav" id="quarterNav" aria-label="Quarters"></nav>
+
+        <div class="sidebar-actions">
+          <button class="button ghost" id="exportBtn" type="button" title="Export tracker data">
+            <span aria-hidden="true">&darr;</span>
+            Export
+          </button>
+          <label class="button ghost file-button" title="Import tracker data">
+            <span aria-hidden="true">&uarr;</span>
+            Import
+            <input id="importInput" type="file" accept="application/json">
+          </label>
+          <button class="button danger" id="resetBtn" type="button" title="Reset tracker to the roadmap template">
+            Reset
+          </button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Individual Roadmap</p>
+            <h2 id="quarterTitle"></h2>
+            <p id="quarterFocus" class="focus"></p>
+          </div>
+          <div class="topbar-actions">
+            <div class="sync-status" id="syncStatus" data-state="local">Local draft</div>
+            <label class="search-box">
+              <span aria-hidden="true">/</span>
+              <input id="searchInput" type="search" placeholder="Search projects, subtasks, notes">
+            </label>
+            <select id="statusFilter" aria-label="Filter by project status">
+              <option value="all">All status</option>
+              <option value="Not Started">Not Started</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Blocked">Blocked</option>
+              <option value="Done">Done</option>
+            </select>
+            <button class="button ghost" id="adminTokenBtn" type="button" title="Set edit passcode">
+              <span aria-hidden="true">#</span>
+              Passcode
+            </button>
+            <button class="button primary" id="addProjectBtn" type="button">
+              <span aria-hidden="true">+</span>
+              Project
+            </button>
+          </div>
+        </header>
+
+        <section class="metrics" aria-label="Quarter progress">
+          <div class="metric">
+            <span class="metric-label">Quarter Progress</span>
+            <strong id="quarterProgress">0%</strong>
+            <div class="meter" aria-hidden="true"><span id="quarterMeter"></span></div>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Projects</span>
+            <strong id="projectCount">0</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Subtasks Done</span>
+            <strong id="subtaskCount">0 / 0</strong>
+          </div>
+          <div class="metric">
+            <span class="metric-label">Blocked</span>
+            <strong id="blockedCount">0</strong>
+          </div>
+        </section>
+
+        <section class="board-tools" aria-label="Tracker tools">
+          <div class="category-pills" id="categoryPills"></div>
+          <button class="button ghost" id="expandAllBtn" type="button">Expand all</button>
+        </section>
+
+        <section class="project-board" id="projectBoard" aria-live="polite"></section>
+      </main>
+    </div>
+
+    <dialog id="projectDialog" class="dialog">
+      <form method="dialog" id="projectForm">
+        <header>
+          <h3 id="dialogTitle">Add Project</h3>
+          <button class="icon-button" value="cancel" type="submit" aria-label="Close dialog">x</button>
+        </header>
+        <div class="form-grid">
+          <label>
+            Quarter
+            <select id="projectQuarter"></select>
+          </label>
+          <label>
+            Category
+            <input id="projectCategory" list="categoryOptions" required>
+          </label>
+          <label class="wide">
+            Project
+            <input id="projectTitle" required>
+          </label>
+          <label>
+            Owner
+            <input id="projectOwner" placeholder="Owner">
+          </label>
+          <label>
+            Due
+            <input id="projectDue" type="date">
+          </label>
+          <label>
+            Priority
+            <select id="projectPriority">
+              <option>High</option>
+              <option>Medium</option>
+              <option>Low</option>
+            </select>
+          </label>
+          <label>
+            Status
+            <select id="projectStatus">
+              <option>Not Started</option>
+              <option>In Progress</option>
+              <option>Blocked</option>
+              <option>Done</option>
+            </select>
+          </label>
+          <label class="wide">
+            Description
+            <textarea id="projectDescription" rows="4"></textarea>
+          </label>
+          <label class="wide">
+            Notes
+            <textarea id="projectNotes" rows="3"></textarea>
+          </label>
+        </div>
+        <footer>
+          <button class="button ghost" value="cancel" type="submit">Cancel</button>
+          <button class="button primary" id="saveProjectBtn" value="default" type="submit">Save</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <datalist id="categoryOptions"></datalist>
+
+    <script src="app.js"></script>
+  </body>
+</html>

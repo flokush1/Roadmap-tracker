@@ -1,0 +1,5 @@
+*.docx
+deploy/
+roadmap-tracker-deploy.zip
+.netlify/
+.vercel/
