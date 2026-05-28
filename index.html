@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>FY 2026-27 Roadmap Tracker</title>
     <link rel="stylesheet" href="styles.css">
+    <script>
+      (function () {
+        var t = localStorage.getItem("roadmap-tracker-theme-v1");
+        if (!t) t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body>
     <div class="app-shell">
@@ -21,6 +28,8 @@
           <span>Kush Prakhar</span>
           <strong>Data Scientist</strong>
         </div>
+
+        <div class="year-stats" id="yearStats" aria-label="Year progress"></div>
 
         <nav class="quarter-nav" id="quarterNav" aria-label="Quarters"></nav>
 
@@ -60,10 +69,8 @@
               <option value="Blocked">Blocked</option>
               <option value="Done">Done</option>
             </select>
-            <button class="button ghost" id="adminTokenBtn" type="button" title="Set edit passcode">
-              <span aria-hidden="true">#</span>
-              Passcode
-            </button>
+            <button class="icon-button" id="themeToggleBtn" type="button" title="Switch to dark mode" aria-label="Switch to dark mode">☾</button>
+            <button class="button ghost" id="syncSetupBtn" type="button" title="Configure live sync via GitHub Gist">⇅ Sync</button>
             <button class="button primary" id="addProjectBtn" type="button">
               <span aria-hidden="true">+</span>
               Project

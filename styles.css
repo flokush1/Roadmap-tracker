@@ -791,3 +791,245 @@ textarea {
     flex-direction: column;
   }
 }
+
+/* ── Theme toggle icon button in topbar ──────────────────────────────────── */
+
+.topbar-actions .icon-button {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+  font-size: 1.1rem;
+}
+
+/* ── Smooth card hover ───────────────────────────────────────────────────── */
+
+.project-card {
+  transition: box-shadow 160ms ease, border-left-color 160ms ease;
+}
+
+.project-card:hover {
+  box-shadow: 0 18px 44px rgba(39, 35, 29, 0.13);
+}
+
+/* ── Current quarter tab ─────────────────────────────────────────────────── */
+
+.quarter-tab.current {
+  border-color: rgba(216, 180, 93, 0.55);
+}
+
+/* ── Due-date badges ─────────────────────────────────────────────────────── */
+
+.due-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.due-badge.overdue {
+  background: #f5dfdc;
+  color: var(--red);
+}
+
+.due-badge.due-soon {
+  background: #f4ecd9;
+  color: var(--gold);
+}
+
+/* ── Search flash animation ──────────────────────────────────────────────── */
+
+@keyframes searchFlash {
+  0%, 100% { border-color: var(--line); }
+  50% { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(36, 119, 109, 0.18); }
+}
+
+.search-box.shortcut-flash {
+  animation: searchFlash 0.38s ease;
+}
+
+/* ── Year progress in sidebar ────────────────────────────────────────────── */
+
+.year-stats {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius);
+}
+
+.year-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.year-stats-label {
+  color: rgba(255, 250, 240, 0.62);
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.045em;
+}
+
+.year-stats-pct {
+  color: #d8b45d;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
+.year-stats-sub span {
+  color: rgba(255, 250, 240, 0.5);
+  font-size: 0.76rem;
+}
+
+.year-meter {
+  height: 5px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.year-meter span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), #d8b45d);
+  border-radius: inherit;
+  transition: width 300ms ease;
+}
+
+/* ── Dark mode ───────────────────────────────────────────────────────────── */
+
+[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #181614;
+  --panel: #222019;
+  --panel-alt: #292622;
+  --ink: #ede8dc;
+  --muted: #9a9080;
+  --line: #3a352e;
+  --line-strong: #4c4740;
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .sidebar {
+  background: #111009;
+  border-right-color: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] input:not([type="checkbox"]):not([type="file"]),
+[data-theme="dark"] textarea {
+  background: #2c2925;
+  color: var(--ink);
+  border-color: var(--line);
+}
+
+[data-theme="dark"] .project-description {
+  color: #c0b8ac;
+}
+
+[data-theme="dark"] .subtask-row {
+  background: var(--panel-alt);
+}
+
+[data-theme="dark"] .project-card:hover {
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .meter {
+  background: #3a352e;
+}
+
+[data-theme="dark"] .status-badge {
+  background: #3a352e;
+  color: #b0a898;
+}
+
+[data-theme="dark"] .status-badge[data-status="In Progress"] {
+  background: #1a2e28;
+  color: #5abfb0;
+}
+
+[data-theme="dark"] .status-badge[data-status="Blocked"] {
+  background: #2e1a18;
+  color: #e07060;
+}
+
+[data-theme="dark"] .status-badge[data-status="Done"] {
+  background: #1a2e1c;
+  color: #6ab87a;
+}
+
+[data-theme="dark"] .priority-badge {
+  background: #2e2518;
+  color: #d4a855;
+}
+
+[data-theme="dark"] .due-badge.overdue {
+  background: #2e1a18;
+  color: #e07060;
+}
+
+[data-theme="dark"] .due-badge.due-soon {
+  background: #2e2518;
+  color: #d4a855;
+}
+
+[data-theme="dark"] .pill.active {
+  background: #1a2e28;
+  border-color: rgba(36, 119, 109, 0.5);
+  color: #5abfb0;
+}
+
+[data-theme="dark"] .sync-status {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--muted);
+}
+
+[data-theme="dark"] .sync-status[data-state="loading"],
+[data-theme="dark"] .sync-status[data-state="saving"] {
+  background: #2a2010;
+  color: #d4a855;
+  border-color: rgba(212, 168, 85, 0.35);
+}
+
+[data-theme="dark"] .sync-status[data-state="synced"] {
+  background: #162418;
+  color: #6ab87a;
+  border-color: rgba(106, 184, 122, 0.3);
+}
+
+[data-theme="dark"] .sync-status[data-state="error"] {
+  background: #241614;
+  color: #e07060;
+  border-color: rgba(224, 112, 96, 0.3);
+}
+
+[data-theme="dark"] .topbar-actions .icon-button {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .dialog::backdrop {
+  background: rgba(0, 0, 0, 0.72);
+}
+
+[data-theme="dark"] .empty {
+  border-color: var(--line-strong);
+}
+
+@keyframes searchFlash-dark {
+  0%, 100% { border-color: var(--line); }
+  50% { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(36, 119, 109, 0.25); }
+}
+
+[data-theme="dark"] .search-box.shortcut-flash {
+  animation: searchFlash-dark 0.38s ease;
+}

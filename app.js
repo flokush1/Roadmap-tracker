@@ -1,6 +1,8 @@
 const STORAGE_KEY = "roadmap-tracker-fy-2026-27-v1";
 const VIEW_KEY = "roadmap-tracker-view-v1";
 const ADMIN_TOKEN_KEY = "roadmap-tracker-admin-token-v1";
+const THEME_KEY = "roadmap-tracker-theme-v1";
+const GIST_CONFIG_KEY = "roadmap-tracker-gist-v1";
 const API_URL = "/api/roadmap";
 
 const CATEGORY_ORDER = [
@@ -358,7 +360,6 @@ const els = {
   syncStatus: document.getElementById("syncStatus"),
   searchInput: document.getElementById("searchInput"),
   statusFilter: document.getElementById("statusFilter"),
-  adminTokenBtn: document.getElementById("adminTokenBtn"),
   addProjectBtn: document.getElementById("addProjectBtn"),
   exportBtn: document.getElementById("exportBtn"),
   importInput: document.getElementById("importInput"),
@@ -424,6 +425,62 @@ function uid(prefix) {
   return `${prefix}-${random}`;
 }
 
+// ── Theme ────────────────────────────────────────────────────────────────────
+
+function loadTheme() {
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) return saved;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem(THEME_KEY, theme);
+  const btn = document.getElementById("themeToggleBtn");
+  if (btn) {
+    const isDark = theme === "dark";
+    btn.textContent = isDark ? "\u2600" : "\u263e";
+    btn.title = isDark ? "Switch to light mode" : "Switch to dark mode";
+    btn.setAttribute("aria-label", isDark ? "Switch to light mode" : "Switch to dark mode");
+  }
+}
+
+function toggleTheme() {
+  applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
+}
+
+// ── Due-date helpers ─────────────────────────────────────────────────────────
+
+function getDueBadge(item) {
+  if (!item.due || item.status === "Done") return "";
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(item.due);
+  const diff = Math.ceil((due - today) / 86400000);
+  if (diff < 0) return `<span class="due-badge overdue">Overdue ${Math.abs(diff)}d</span>`;
+  if (diff === 0) return `<span class="due-badge due-soon">Due today</span>`;
+  if (diff <= 7) return `<span class="due-badge due-soon">Due in ${diff}d</span>`;
+  return "";
+}
+
+// ── Active-quarter detection ─────────────────────────────────────────────────
+
+function getCurrentQuarterId() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  for (let i = 0; i < roadmap.quarters.length; i++) {
+    const q = roadmap.quarters[i];
+    if (!q.due) continue;
+    const due = new Date(q.due);
+    const prev = roadmap.quarters[i - 1];
+    const start = prev?.due
+      ? new Date(new Date(prev.due).getTime() + 86400000)
+      : new Date(due.getFullYear(), due.getMonth() - 2, 1);
+    if (today >= start && today <= due) return q.id;
+  }
+  return null;
+}
+
 function loadRoadmap() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -459,7 +516,7 @@ function setSyncStatus(state, text) {
 }
 
 function isFilePreview() {
-  return window.location.protocol === "file:";
+  return true; // localStorage-only — no backend required
 }
 
 function getAdminToken() {
@@ -483,16 +540,14 @@ function setAdminToken() {
 }
 
 function scheduleRemoteSave(delay = 550) {
-  if (isFilePreview()) {
-    setSyncStatus("local", "Local draft");
+  const { gistId, token } = getGistConfig();
+  if (!gistId || !token) {
+    setSyncStatus("synced", "Saved");
     return;
   }
-
   clearTimeout(saveTimer);
-  setSyncStatus("saving", "Saving");
-  saveTimer = setTimeout(() => {
-    saveRoadmapToBackend();
-  }, delay);
+  setSyncStatus("saving", "Syncing\u2026");
+  saveTimer = setTimeout(saveToGist, delay);
 }
 
 async function loadRoadmapFromBackend() {
@@ -580,6 +635,129 @@ async function saveRoadmapToBackend({ allowPrompt = true } = {}) {
       scheduleRemoteSave(100);
     }
   }
+}
+
+// ── GitHub Gist sync (free, no subscription) ──────────────────────────────────
+
+function getGistConfig() {
+  try { return JSON.parse(localStorage.getItem(GIST_CONFIG_KEY)) || {}; } catch { return {}; }
+}
+
+function saveGistConfig(cfg) {
+  localStorage.setItem(GIST_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+// If the URL contains ?gist=ID, save that ID so the visitor auto-loads it
+function initGistFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get("gist");
+  if (id && id !== getGistConfig().gistId) {
+    saveGistConfig({ ...getGistConfig(), gistId: id });
+  }
+}
+
+async function loadFromGist() {
+  const cfg = getGistConfig();
+  if (!cfg.gistId) return;
+  setSyncStatus("loading", "Loading\u2026");
+  try {
+    const headers = { Accept: "application/vnd.github+json" };
+    if (cfg.token) headers.Authorization = `Bearer ${cfg.token}`;
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      cache: "no-store",
+      headers
+    });
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    const data = await res.json();
+    const raw = data.files?.["roadmap.json"]?.content;
+    if (!raw) throw new Error("roadmap.json not found in gist");
+    roadmap = normalizeRoadmap(JSON.parse(raw));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(roadmap));
+    render();
+    setSyncStatus("synced", `Synced ${formatDateTime(data.updated_at)}`);
+  } catch (err) {
+    console.warn("Gist load failed:", err);
+    setSyncStatus("error", "Sync error — using local data");
+  }
+}
+
+async function saveToGist() {
+  const cfg = getGistConfig();
+  if (!cfg.gistId || !cfg.token) { setSyncStatus("synced", "Saved"); return; }
+  if (saveInFlight) { pendingRemoteSave = true; return; }
+  saveInFlight = true;
+  setSyncStatus("saving", "Syncing\u2026");
+  try {
+    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
+      method: "PATCH",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${cfg.token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        files: { "roadmap.json": { content: JSON.stringify(roadmap, null, 2) } }
+      })
+    });
+    if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+    const data = await res.json();
+    setSyncStatus("synced", `Synced ${formatDateTime(data.updated_at)}`);
+  } catch (err) {
+    console.warn("Gist save failed:", err);
+    setSyncStatus("error", "Sync failed");
+  } finally {
+    saveInFlight = false;
+    if (pendingRemoteSave) { pendingRemoteSave = false; setTimeout(saveToGist, 100); }
+  }
+}
+
+function openSyncSetup() {
+  const cfg = getGistConfig();
+
+  const gistId = prompt(
+    "SYNC SETUP \u2014 Step 1 of 2\n\n" +
+    "Create a GitHub Gist to store your roadmap (gist.github.com is free):\n" +
+    "  1. Go to gist.github.com\n" +
+    "  2. Set the filename to:  roadmap.json\n" +
+    "  3. Put  {}  as the content\n" +
+    "  4. Click \u2018Create secret gist\u2019\n" +
+    "  5. Copy the ID from the URL:\n" +
+    "     gist.github.com/your-name/abc123def456  \u2192  abc123def456\n\n" +
+    "Paste the Gist ID below (leave empty to disable sync):",
+    cfg.gistId || ""
+  );
+  if (gistId === null) return;
+  if (!gistId.trim()) {
+    localStorage.removeItem(GIST_CONFIG_KEY);
+    setSyncStatus("synced", "Saved");
+    alert("Sync disabled. Your data is still saved locally.");
+    return;
+  }
+
+  const tokenInput = prompt(
+    "SYNC SETUP \u2014 Step 2 of 2\n\n" +
+    "Create a GitHub token so the app can write to your Gist:\n" +
+    "  1. Go to github.com/settings/tokens\n" +
+    "  2. Click \u2018Generate new token (classic)\u2019\n" +
+    "  3. Check ONLY the \u2018gist\u2019 scope \u2014 nothing else\n" +
+    "  4. Copy the token\n\n" +
+    "Paste your token below (stored only in this browser, never sent anywhere else):",
+    cfg.token ? "\u2022\u2022\u2022\u2022\u2022 (paste a new one to replace, or press OK to keep current)" : ""
+  );
+  if (tokenInput === null) return;
+  const token = tokenInput.startsWith("\u2022") ? cfg.token : tokenInput.trim();
+
+  saveGistConfig({ gistId: gistId.trim(), token });
+
+  saveToGist().then(() => {
+    const shareUrl = `${window.location.origin}${window.location.pathname}?gist=${gistId.trim()}`;
+    alert(
+      "\u2705 Sync configured!\n\n" +
+      "Every change you make now auto-syncs to your GitHub Gist.\n\n" +
+      "Share this link so others can always see your live roadmap:\n\n" +
+      shareUrl
+    );
+  });
 }
 
 function normalizeRoadmap(data) {
@@ -695,6 +873,7 @@ function render() {
   }
 
   renderQuarterNav();
+  renderYearStats();
   renderHeader(quarter);
   renderMetrics(quarter);
   renderCategories(quarter);
@@ -703,12 +882,14 @@ function render() {
 }
 
 function renderQuarterNav() {
+  const currentId = getCurrentQuarterId();
   els.quarterNav.innerHTML = roadmap.quarters.map((quarter) => {
     const stats = quarterStats(quarter);
+    const isCurrent = quarter.id === currentId;
     return `
-      <button class="quarter-tab ${quarter.id === activeQuarterId ? "active" : ""}" type="button" data-quarter="${quarter.id}">
+      <button class="quarter-tab ${quarter.id === activeQuarterId ? "active" : ""} ${isCurrent ? "current" : ""}" type="button" data-quarter="${quarter.id}">
         <span>
-          <strong>${escapeHtml(quarter.label)} · ${escapeHtml(quarter.title)}</strong>
+          <strong>${isCurrent ? "\u25b8 " : ""}${escapeHtml(quarter.label)} \u00b7 ${escapeHtml(quarter.title)}</strong>
           ${escapeHtml(quarter.period)}
         </span>
         <span class="tab-progress" style="--value: ${stats.progress}%">${stats.progress}%</span>
@@ -729,6 +910,32 @@ function renderMetrics(quarter) {
   els.projectCount.textContent = stats.projects;
   els.subtaskCount.textContent = `${stats.doneSubtasks} / ${stats.totalSubtasks}`;
   els.blockedCount.textContent = stats.blocked;
+}
+
+function renderYearStats() {
+  const el = document.getElementById("yearStats");
+  if (!el) return;
+  let totalSubtasks = 0, doneSubtasks = 0, totalProjects = 0, doneProjects = 0;
+  roadmap.quarters.forEach((q) => {
+    q.projects.forEach((p) => {
+      totalProjects++;
+      if (p.status === "Done") doneProjects++;
+      totalSubtasks += p.subtasks.length;
+      doneSubtasks += p.subtasks.filter((s) => s.done).length;
+    });
+  });
+  const pct = totalSubtasks ? Math.round((doneSubtasks / totalSubtasks) * 100) : 0;
+  el.innerHTML = `
+    <div class="year-stats-row">
+      <span class="year-stats-label">Year Progress</span>
+      <span class="year-stats-pct">${pct}%</span>
+    </div>
+    <div class="year-meter"><span style="width: ${pct}%"></span></div>
+    <div class="year-stats-row year-stats-sub">
+      <span>${doneProjects}\u202f/\u202f${totalProjects} projects</span>
+      <span>${doneSubtasks}\u202f/\u202f${totalSubtasks} tasks</span>
+    </div>
+  `;
 }
 
 function renderCategories(quarter) {
@@ -781,6 +988,7 @@ function renderProjectCard(item) {
             <h4>${escapeHtml(item.title)}</h4>
             <span class="status-badge" data-status="${escapeAttribute(item.status)}">${escapeHtml(item.status)}</span>
             <span class="priority-badge">${escapeHtml(item.priority)}</span>
+            ${getDueBadge(item)}
           </div>
           <div class="project-meta">
             <span>${escapeHtml(item.owner || "No owner")}</span>
@@ -1167,9 +1375,6 @@ els.categoryPills.addEventListener("click", (event) => {
 
 els.searchInput.addEventListener("input", renderProjects);
 els.statusFilter.addEventListener("change", renderProjects);
-els.adminTokenBtn.addEventListener("click", () => {
-  if (setAdminToken()) saveRoadmapToBackend({ allowPrompt: false });
-});
 els.addProjectBtn.addEventListener("click", () => openProjectDialog());
 els.projectBoard.addEventListener("click", handleBoardClick);
 els.projectBoard.addEventListener("change", handleBoardChange);
@@ -1199,5 +1404,38 @@ els.projectForm.addEventListener("submit", (event) => {
   els.projectDialog.close();
 });
 
+// ── Keyboard shortcut: "/" focuses search ──────────────────────────────────────────
+
+document.addEventListener("keydown", (event) => {
+  if (
+    event.key === "/" &&
+    !event.metaKey && !event.ctrlKey && !event.altKey &&
+    !["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)
+  ) {
+    event.preventDefault();
+    els.searchInput.focus();
+    els.searchInput.select();
+    const label = els.searchInput.closest(".search-box");
+    if (label) {
+      label.classList.add("shortcut-flash");
+      label.addEventListener("animationend", () => label.classList.remove("shortcut-flash"), { once: true });
+    }
+  }
+  if (event.key === "Escape" && document.activeElement === els.searchInput && els.searchInput.value) {
+    els.searchInput.value = "";
+    renderProjects();
+  }
+});
+
+document.getElementById("themeToggleBtn")?.addEventListener("click", toggleTheme);
+document.getElementById("syncSetupBtn")?.addEventListener("click", openSyncSetup);
+
+applyTheme(loadTheme());
+initGistFromUrl();
 render();
-loadRoadmapFromBackend();
+
+if (getGistConfig().gistId) {
+  loadFromGist();
+} else {
+  setSyncStatus("synced", "Saved");
+}
